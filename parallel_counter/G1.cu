@@ -119,29 +119,15 @@ __device__ int areConnectedDevice(Node *graph, int i, int j) {
 }
 
 
-// __host__ __device__ int totalCombinations(int x, int y) {
-//     // int numerator = 1;
-//     // int denominator = 1;
-
-//     // for (int i = 0; i < y; ++i) {
-//     //     numerator *= (x - i);
-//     //     denominator *= (i + 1);
-//     // }
-
-//     return 244979536;
-// }
 
 
-
-__global__ void G1_count_kernel(Node *graph, int numNodes, int totalComb, int *count, int *combination, int *G1_combs, int *sizeG1) {
+__global__ void G1_count_kernel(Node *graph, int numNodes, int totalComb, int *count, int *combination, int *G1_combs) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid < totalComb) {
-        
         int indexes = tid * 3;
-        int i = combination[indexes];
-        int j = combination[indexes + 1];
-        int k = combination[indexes + 2];
-        //printf("i: %d j: %d k: %d\n", i, j, k);
+        int i = combination[indexes] -1; // -1 for zero indexing
+        int j = combination[indexes + 1] -1;
+        int k = combination[indexes + 2] - 1;
         int ij_connection = areConnectedDevice(graph, i, j);
         int ik_connection = areConnectedDevice(graph, i, k);
         int jk_connection = areConnectedDevice(graph, j, k);
@@ -149,64 +135,19 @@ __global__ void G1_count_kernel(Node *graph, int numNodes, int totalComb, int *c
         if ((ij_connection && ik_connection && !jk_connection) ||
             (ik_connection && jk_connection && !ij_connection) ||
             (jk_connection && ij_connection && !ik_connection)) {
-            atomicAdd(count, 1);
             
-            G1_combs[*sizeG1] = i;
-            G1_combs[*sizeG1 + 1] = j;
-            G1_combs[*sizeG1 + 2] = k;
-            atomicAdd(sizeG1, 3);
+            atomicAdd(count, 1);            
+            G1_combs[indexes] = i;
+            G1_combs[indexes + 1] = j;
+            G1_combs[indexes + 2] = k;
             
             //printf("G1 i: %d j: %d k: %d\n", i, j, k);
         }
     }
 }
 
-// __global__ void test(Node *graph, int numNodes, int totalComb, int *count) {
-//     int tid = blockIdx.x * blockDim.x + threadIdx.x;
-//     if (tid < totalComb) {
-        
-//         int combination[3];
-//         indexToCombinationDevice(numNodes, 3, 2, combination);
-
-//         int i = combination[0];
-//         int j = combination[1];
-//         int k = combination[2];
-
-//         printf("i: %d j: %d k: %d\n", i, j, k);
-//         //int ij_connection = areConnectedDevice(graph, 100, 26);
-//         //int ik_connection = areConnectedDevice(graph, 85, 282);
-
-        
-//     }
-// }
 
 
-// Helper function for recursive Gray code based combination generation
-void gen(int *ans, int n, int k, int idx, bool rev, int *comb, int *size) {
-    
-    if (k > n || k < 0) {
-        return;
-    }
-    
-    if (n == 0) {
-        for (int i = 0; i < idx; i++) {
-            if (ans[i]) {
-                //printf("%d ", i+1);
-                comb[*size] = i + 1;
-                (*size)++;
-            }
-        }
-        //printf("\n");
-        //printf("size: %d\n", *size);
-        return;
-    }
-
-    ans[idx] = rev;
-    gen(ans, n - 1, k - rev, idx + 1, false, comb, size);
-    ans[idx] = !rev;
-    gen(ans, n - 1, k - !rev, idx + 1, true, comb, size);
-
-}
 
 
 
@@ -220,10 +161,10 @@ int main() {
     
     // Read the graph from the file
     readGraph("graph.txt", &h_graph, &numNodes);
-    printf("[main] Number of nodes: %d\n", numNodes);
+    //printf("[main] Number of nodes: %d\n", numNodes);
     int h_count = 0;
 
-    printf("[main] Allocating memory on the device\n");
+    //printf("[main] Allocating memory on the device\n");
     Node *d_graph;
     cudaMalloc((void**)&d_graph, numNodes * sizeof(Node));
     
@@ -241,88 +182,93 @@ int main() {
     // Generate all combinations
 
     int n = numNodes;
-    //int k = 3;
-    //int *ans = (int *)malloc(n * sizeof(int));
+    int num_of_combinations = n*(n-1)*(n-2)/3/2;
 
     int *comb;
     cudaError_t cudaStatus;
 
-    cudaStatus = cudaMallocManaged(&comb, n*(n-1)*(n-2)/3/2  * 3 * sizeof(int));
-    //int num = 0;
+    cudaStatus = cudaMallocManaged(&comb, num_of_combinations  * 3 * sizeof(int));
+
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMallocManaged failed: %s\n", cudaGetErrorString(cudaStatus));
         return 1;
     }
 
     int *G1_combs;
-    cudaMallocManaged(&G1_combs, 3736*3* sizeof(int));
+    cudaMallocManaged(&G1_combs, num_of_combinations*3* sizeof(int));
 
-    int *G1_size = 0;
-    cudaMallocManaged(&G1_size, sizeof(int));
-    // gen(ans, n, k, 0, false, comb, &num);
-
-    // // Print elements of comb
-    // printf("Elements of comb array:\n");
-    // for (int i = 0; i < 10; ++i) {
-    //     printf("%d ", comb[i]);
-    // }
-    // printf("\n");
-
-    // // Write to binary file
-    // std::ofstream outfile("3_node_combinations.bin", std::ios::binary);
-    // outfile.write(reinterpret_cast<char*>(comb), n*(n-1)*(n-2)/3/2  * 3* sizeof(int));
-    // outfile.close();    
-
-
-    
-
-
-    // // Print elements of comb
-    // printf("Elements of comb array:\n");
-    // for (int i = 0; i < 10; ++i) {
-    //     printf("%d ", comb[i]);
-    // }
-    // printf("\n");
-
-    //free(ans);
     
 
     // // Read from binary file
     std::ifstream infile("3_node_combinations.bin", std::ios::binary);
-    infile.read(reinterpret_cast<char*>(comb), n*(n-1)*(n-2)/3/2  * 3* sizeof(int));
+    infile.read(reinterpret_cast<char*>(comb), num_of_combinations  * 3* sizeof(int));
     infile.close();
 
-    //Define block and grid sizes
-    int totalComb;  // Update this based on your actual combinations
-    totalComb = 244979536;
-    int blockSize = 512;
-    int gridSize = (totalComb + blockSize - 1) / blockSize;
-
-    printf("[main] Launching kernel\n");
-    // Launch the kernel
-    G1_count_kernel<<<gridSize, blockSize >>>(d_graph, numNodes, totalComb, d_count, comb, G1_combs, G1_size);
-
-    cudaDeviceSynchronize();
-
+    // // Print elements of comb
     // printf("Elements of comb array:\n");
-    // for (int i = 0; i < 10; ++i) {
-    //     printf("%d ", G1_combs[i]);
+    // for (int i = 0; i < *3; ++i) {
+    //     printf("%d ", comb[i]);
     // }
     // printf("\n");
 
-    // Write to binary file
-    std::ofstream outfile("G1_node_combinations.bin", std::ios::binary);
-    outfile.write(reinterpret_cast<char*>(G1_combs), 3736 * 3* sizeof(int));
-    outfile.close(); 
+    //Define block and grid sizes
+    int totalComb;  // Update this based on your actual combinations
+    totalComb = num_of_combinations;
+    int blockSize = 512;
+    int gridSize = (totalComb + blockSize - 1) / blockSize;
+
+    printf("[main] Launching kernels for G1\n");
+    // Launch the kernel
+    G1_count_kernel<<<gridSize, blockSize >>>(d_graph, numNodes, totalComb, d_count, comb, G1_combs);
+
+    cudaDeviceSynchronize();
+
+
+
+    
 
     // Copy the results back to the host
     cudaMemcpy(&h_count, d_count, sizeof(int), cudaMemcpyDeviceToHost);
 
     // Print the result
-    printf("[main] Count: %d\n", h_count);
+    printf("[main] G1 Count: %d\n", h_count);
+    int *h_G1_combs =(int *)malloc(h_count *3* sizeof(int));
 
+    //printf("Elements of G1 array:\n");
+    int index = 0;
+    for (int i = 0; i < num_of_combinations; ++i) {
+        int idx = i * 3;
+        if (G1_combs[idx] || G1_combs[idx+1] || G1_combs[idx+2])
+        {
+            h_G1_combs[index * 3] = G1_combs[idx];
+            h_G1_combs[index * 3 + 1] = G1_combs[idx+1];
+            h_G1_combs[index * 3 + 2] = G1_combs[idx+2];
+            //printf("index : %d\n", index);
+            //printf("i: %d, j: %d, k: %d \n", h_G1_combs[index * 3], h_G1_combs[index * 3 + 1], h_G1_combs[index * 3 + 2]);            
+            index++;
+        }
+    }
+
+    // // Print elements of h_G1_combs
+    // printf("Elements of h_G1_combs array:\n");
+    // for (int i = 0; i < h_count; ++i) {
+    //     int idx = i * 3;
+    //     printf("index : %d\n", idx);
+    //     printf("i: %d, j: %d, k: %d \n", h_G1_combs[idx], h_G1_combs[idx+1], h_G1_combs[idx+2]);
+    // }
+    // printf("\n");
+
+
+    
+    //printf("\n");
+    // Write to binary file
+    std::ofstream outfile("G1_node_combinations.bin", std::ios::binary);
+    // Write the size at the beginning of the file
+    outfile.write(reinterpret_cast<char*>(&h_count), sizeof(int));
+    outfile.write(reinterpret_cast<char*>(h_G1_combs), h_count * 3 * sizeof(int));
+    outfile.close(); 
     // Free unified memory
-    cudaFree(G1_size);
+    free(h_G1_combs);
     cudaFree(G1_combs);
     cudaFree(comb);
     cudaFree(h_graph);
@@ -331,4 +277,3 @@ int main() {
 
     return 0;
 }
-

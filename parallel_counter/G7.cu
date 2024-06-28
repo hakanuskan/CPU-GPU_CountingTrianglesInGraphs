@@ -164,42 +164,6 @@ __global__ void G7_count_kernel(Node *graph, int numNodes, int totalComb,int l, 
     }
 
 
- 
-
-
-
-
-
-// Helper function for recursive Gray code based combination generation
-void gen(int *ans, int n, int k, int idx, bool rev, int *comb, int *size) {
-    
-    if (k > n || k < 0) {
-        return;
-    }
-    
-    if (n == 0) {
-        for (int i = 0; i < idx; i++) {
-            if (ans[i]) {
-                //printf("%d ", i+1);
-                comb[*size] = i + 1;
-                (*size)++;
-            }
-        }
-        //printf("\n");
-        //printf("size: %d\n", *size);
-        return;
-    }
-
-    ans[idx] = rev;
-    gen(ans, n - 1, k - rev, idx + 1, false, comb, size);
-    ans[idx] = !rev;
-    gen(ans, n - 1, k - !rev, idx + 1, true, comb, size);
-
-}
-
-
-
-
 
 
 int main() {
@@ -209,10 +173,8 @@ int main() {
     
     // Read the graph from the file
     readGraph("graph.txt", &h_graph, &numNodes);
-    printf("[main] Number of nodes: %d\n", numNodes);
     int h_count = 0;
 
-    printf("[main] Allocating memory on the device\n");
     Node *d_graph;
     cudaMalloc((void**)&d_graph, numNodes * sizeof(Node));
     
@@ -226,62 +188,47 @@ int main() {
 
 
 
-    printf("[main] Generating all combinations\n");
-    // Generate all combinations
 
-    int n = numNodes;
-    //int k = 3;
-    int *ans = (int *)malloc(n * sizeof(int));
+    // // Read from binary file
+    std::ifstream infile("G2_node_combinations.bin", std::ios::binary);
+
+    // Read the size of the array
+    int size_of_G2_combs;
+    infile.read(reinterpret_cast<char*>(&size_of_G2_combs), sizeof(int));
 
     int *comb;
     cudaError_t cudaStatus;
 
-    cudaStatus = cudaMallocManaged(&comb, 128  * 3 * sizeof(int));
+    cudaStatus = cudaMallocManaged(&comb, size_of_G2_combs  * 3 * sizeof(int));
     //int num = 0;
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMallocManaged failed: %s\n", cudaGetErrorString(cudaStatus));
         return 1;
     }
-    // gen(ans, n, k, 0, false, comb, &num);
 
-    // // Print elements of comb
-    // printf("Elements of comb array:\n");
-    // for (int i = 0; i < 10; ++i) {
-    //     printf("%d ", comb[i]);
-    // }
-    // printf("\n");
-
-    // // Write to binary file
-    // std::ofstream outfile("3_node_combinations.bin", std::ios::binary);
-    // outfile.write(reinterpret_cast<char*>(comb), n*(n-1)*(n-2)/3/2  * 3* sizeof(int));
-    // outfile.close();    
-
-    // free(ans);
-    
-
-    // // Read from binary file
-    std::ifstream infile("G2_node_combinations.bin", std::ios::binary);
-    infile.read(reinterpret_cast<char*>(comb), 128  * 3 * sizeof(int));
+    infile.read(reinterpret_cast<char*>(comb), size_of_G2_combs  * 3 * sizeof(int));
     infile.close();
 
 
-    // // Print elements of comb
-    // printf("Elements of comb array:\n");
-    // for (int i = 0; i < 10; ++i) {
-    //     printf("%d ", comb[i]);
+    // // Print elements of h_G2_combs
+    // printf("Elements of h_G2_combs array:\n");
+    // for (int i = 0; i < size_of_G2_combs; ++i) {
+    //     int idx = i * 3;
+    //     printf("index : %d\n", idx);
+    //     printf("i: %d, j: %d, k: %d \n", comb[idx], comb[idx+1], comb[idx+2]);
     // }
     // printf("\n");
 
     //Define block and grid sizes
     int totalComb;  // Update this based on your actual combinations
-    totalComb = 128;
+    totalComb = size_of_G2_combs;
     int blockSize = 512;
     int gridSize = (totalComb + blockSize - 1) / blockSize;
 
-    printf("[main] Launching kernel\n");
+    printf("[main] Launching kernels for G7\n");
     // Launch the kernel
     int l;
-    for(l = 0; l < 1138; l++){
+    for(l = 0; l < numNodes; l++){
         G7_count_kernel<<<gridSize, blockSize >>>(d_graph, numNodes, totalComb, l ,d_count, comb);
     }
 
@@ -291,7 +238,7 @@ int main() {
     cudaMemcpy(&h_count, d_count, sizeof(int), cudaMemcpyDeviceToHost);
 
     // Print the result
-    printf("[main] Count: %d\n", h_count); // Counted 3 times because of implementation
+    printf("[main] G7 Count: %d\n", h_count/2); 
 
     // Free unified memory
     cudaFree(comb);

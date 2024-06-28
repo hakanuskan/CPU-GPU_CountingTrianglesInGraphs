@@ -119,14 +119,14 @@ __device__ int areConnectedDevice(Node *graph, int i, int j) {
 }
 
 
-__global__ void G2_count_kernel(Node *graph, int numNodes, int totalComb, int *count, int *combination, int *G2_combs, int *sizeG2) {
+__global__ void G2_count_kernel(Node *graph, int numNodes, int totalComb, int *count, int *combination, int *G2_combs) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid < totalComb) {
 
         int indexes = tid * 3;
-        int i = combination[indexes];
-        int j = combination[indexes + 1];
-        int k = combination[indexes + 2];
+        int i = combination[indexes] - 1; //for zero indexing
+        int j = combination[indexes + 1] -1;
+        int k = combination[indexes + 2] -1;
 
         int ij_connection = areConnectedDevice(graph, i, j);
         int ik_connection = areConnectedDevice(graph, i, k);
@@ -134,10 +134,13 @@ __global__ void G2_count_kernel(Node *graph, int numNodes, int totalComb, int *c
 
         if (ij_connection && jk_connection && ik_connection) {
             atomicAdd(count, 1);
-            G2_combs[*sizeG2] = i;
-            G2_combs[*sizeG2 + 1] = j;
-            G2_combs[*sizeG2 + 2] = k;
-            atomicAdd(sizeG2, 3);
+            G2_combs[indexes] = i;
+            G2_combs[indexes + 1] = j;
+            G2_combs[indexes + 2] = k;
+
+
+            
+            //printf("G2 i: %d, j: %d, k: %d\n", i, j, k);
         }
     }
 }
@@ -188,10 +191,8 @@ int main() {
     
     // Read the graph from the file
     readGraph("graph.txt", &h_graph, &numNodes);
-    printf("[main] Number of nodes: %d\n", numNodes);
     int h_count = 0;
 
-    printf("[main] Allocating memory on the device\n");
     Node *d_graph;
     cudaMalloc((void**)&d_graph, numNodes * sizeof(Node));
     
@@ -205,7 +206,6 @@ int main() {
 
 
 
-    printf("[main] Generating all combinations\n");
     // Generate all combinations
 
     int n = numNodes;
@@ -214,8 +214,8 @@ int main() {
 
     int *comb;
     cudaError_t cudaStatus;
-
-    cudaStatus = cudaMallocManaged(&comb, n*(n-1)*(n-2)/3/2  * 3 * sizeof(int));
+    int totalcombs = n*(n-1)*(n-2)/3/2 ;
+    cudaStatus = cudaMallocManaged(&comb, totalcombs  * 3 * sizeof(int));
     //int num = 0;
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMallocManaged failed: %s\n", cudaGetErrorString(cudaStatus));
@@ -229,51 +229,76 @@ int main() {
     //     printf("%d ", comb[i]);
     // }
     // printf("\n");
-
-    // // Write to binary file
-    // std::ofstream outfile("3_node_combinations.bin", std::ios::binary);
-    // outfile.write(reinterpret_cast<char*>(comb), n*(n-1)*(n-2)/3/2  * 3* sizeof(int));
-    // outfile.close();    
+ 
 
     // free(ans);
     
 
     // Read from binary file
     std::ifstream infile("3_node_combinations.bin", std::ios::binary);
-    infile.read(reinterpret_cast<char*>(comb), n*(n-1)*(n-2)/3/2  * 3* sizeof(int));
+    infile.read(reinterpret_cast<char*>(comb), totalcombs  * 3* sizeof(int));
     infile.close();
 
     int *G2_combs;
-    cudaMallocManaged(&G2_combs, 128*3* sizeof(int));
+    cudaMallocManaged(&G2_combs, totalcombs  * 3* sizeof(int));
 
-    int *G2_size = 0;
-    cudaMallocManaged(&G2_size, sizeof(int));
+
 
     //Define block and grid sizes
     int totalComb;  // Update this based on your actual combinations
-    totalComb = 244979536;
+    totalComb = totalcombs;
     int blockSize = 512;
     int gridSize = (totalComb + blockSize - 1) / blockSize;
 
-    printf("[main] Launching kernel\n");
+    printf("[main] Launching kernels for G2\n");
     // Launch the kernel
-    G2_count_kernel<<<gridSize, blockSize >>>(d_graph, numNodes, totalComb, d_count, comb, G2_combs, G2_size);
+    G2_count_kernel<<<gridSize, blockSize >>>(d_graph, numNodes, totalComb, d_count, comb, G2_combs);
 
     cudaDeviceSynchronize();
 
-
-    // Write to binary file
-    std::ofstream outfile("G2_node_combinations.bin", std::ios::binary);
-    outfile.write(reinterpret_cast<char*>(G2_combs), 128 * 3* sizeof(int));
-    outfile.close(); 
+    
+    
 
     // Copy the results back to the host
     cudaMemcpy(&h_count, d_count, sizeof(int), cudaMemcpyDeviceToHost);
 
     // Print the result
-    printf("[main] Count: %d\n", h_count);
+    printf("[main] G2 Count: %d\n", h_count);
 
+    int *h_G2_combs =(int *)malloc(h_count *3* sizeof(int));
+    //printf("Elements of G1 array:\n");
+    int index = 0;
+    for (int i = 0; i < n*(n-1)*(n-2)/6; ++i) {
+        int idx = i * 3;
+        if (G2_combs[idx] || G2_combs[idx+1] || G2_combs[idx+2])
+        {
+            h_G2_combs[index * 3] = G2_combs[idx];
+            h_G2_combs[index * 3 + 1] = G2_combs[idx+1];
+            h_G2_combs[index * 3 + 2] = G2_combs[idx+2];
+            //printf("index : %d\n", index);
+            //printf("i: %d, j: %d, k: %d \n", h_G2_combs[index * 3], h_G2_combs[index * 3 + 1], h_G2_combs[index * 3 + 2]);            
+            index++;
+        }
+    }
+
+    // // Print elements of h_G2_combs
+    // printf("Elements of h_G2_combs array:\n");
+    // for (int i = 0; i < index; ++i) {
+    //     int idx = i * 3;
+    //     printf("index : %d\n", idx);
+    //     printf("i: %d, j: %d, k: %d \n", h_G2_combs[idx], h_G2_combs[idx+1], h_G2_combs[idx+2]);
+    // }
+    // printf("\n");
+
+
+    // Write to binary file
+    std::ofstream outfile("G2_node_combinations.bin", std::ios::binary);
+    // Write the size at the beginning of the file
+    outfile.write(reinterpret_cast<char*>(&h_count), sizeof(int));
+    outfile.write(reinterpret_cast<char*>(h_G2_combs), h_count * 3 * sizeof(int));
+    outfile.close(); 
     // Free unified memory
+    free(h_G2_combs);
     cudaFree(comb);
     cudaFree(h_graph);
     cudaFree(d_graph);

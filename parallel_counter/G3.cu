@@ -118,18 +118,16 @@ __device__ int areConnectedDevice(Node *graph, int i, int j) {
 }
 
 
-
-__global__ void G5_count_kernel(Node *graph, int numNodes, int totalComb,int l, int *count, int *combination) {
+__global__ void G3_count_kernel(Node *graph, int numNodes, int totalComb, int l, int *count, int *combination) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
-
     if (tid < totalComb) {
-
 
         int indexes = tid * 3;
         int i = combination[indexes];
         int j = combination[indexes + 1];
         int k = combination[indexes + 2];
-        
+        //printf("i = %d, j = %d, k = %d\n", i, j, k);
+
         int ij_connection = areConnectedDevice(graph, i, j);
         int ik_connection = areConnectedDevice(graph, i, k);
         int jk_connection = areConnectedDevice(graph, j, k);
@@ -138,46 +136,80 @@ __global__ void G5_count_kernel(Node *graph, int numNodes, int totalComb,int l, 
         int kl_connection = areConnectedDevice(graph, k, l);
 
 
-
-        if ((ij_connection && jk_connection && jl_connection &&
-             kl_connection && !ik_connection && !il_connection) ||
-            (ij_connection && jk_connection && jl_connection &&
-             !kl_connection && ik_connection && !il_connection) ||
-            (ij_connection && jk_connection && jl_connection &&
-             !kl_connection && !ik_connection && il_connection) ||
-            (ij_connection && ik_connection && il_connection &&
-             kl_connection && !jk_connection && !jl_connection) ||
-            (ij_connection && ik_connection && il_connection &&
-             !kl_connection && jk_connection && !jl_connection) ||
-            (ij_connection && ik_connection && il_connection &&
-             !kl_connection && !jk_connection && jl_connection) ||
-            (jk_connection && ik_connection && kl_connection &&
-             il_connection && !ij_connection && !jl_connection) ||
-            (jk_connection && ik_connection && kl_connection &&
-             !il_connection && ij_connection && !jl_connection) ||
-            (jk_connection && ik_connection && kl_connection &&
-             !il_connection && !ij_connection && jl_connection) ||
-            (jl_connection && il_connection && kl_connection &&
-             ik_connection && !ij_connection && !jk_connection) ||
-            (jl_connection && il_connection && kl_connection &&
-             !ik_connection && ij_connection && !jk_connection) ||
-            (jl_connection && il_connection && kl_connection &&
-             !ik_connection && !ij_connection && jk_connection)) {
+        if (
             
+            // 1
+            ((ij_connection && jk_connection &&
+              kl_connection && !il_connection &&
+              !ik_connection && !jl_connection)) ||
+
+            // 2
+            ((ij_connection && jl_connection &&
+              kl_connection && !ik_connection &&
+              !il_connection && !jk_connection)) ||
+
+            // 3
+            ((ik_connection && jk_connection &&
+              jl_connection && !il_connection &&
+              !ij_connection && !kl_connection)) ||
+
+            // 4
+            ((ik_connection && kl_connection &&
+              jl_connection && !ij_connection &&
+              !il_connection && !jk_connection)) ||
+
+            // 5
+            ((il_connection && jl_connection &&
+              jk_connection && !ik_connection &&
+              !ij_connection && !kl_connection)) ||
+
+            // 6
+            ((il_connection && kl_connection &&
+              jk_connection && !ij_connection &&
+              !ik_connection && !jl_connection)) ||
+
+            // 7
+            ((ij_connection && ik_connection &&
+              kl_connection && !jl_connection &&
+              !jk_connection && !il_connection)) ||
+
+            // 8
+            ((ij_connection && il_connection &&
+              kl_connection && !jk_connection &&
+              !jl_connection && !ik_connection)) ||
+
+            // 9
+            ((jk_connection && ik_connection &&
+              il_connection && !jl_connection &&
+              !ij_connection && !kl_connection)) ||
+
+            
+
+            
+
+            // 12
+            ((jl_connection && il_connection &&
+              ik_connection && !jk_connection &&
+              !ij_connection && !kl_connection)) ||
+
+            // 13
+            ((ik_connection && ij_connection &&
+              jl_connection && !kl_connection &&
+              !jk_connection && !il_connection)) ||
+
+            
+
+            // 15
+            ((jk_connection && ij_connection &&
+              il_connection && !kl_connection &&
+              !ik_connection && !jl_connection))
+        ) {
             atomicAdd(count, 1);
-            //printf("%d %d %d %d\n", i, j, k, l);
+            //printf("G3 i: %d, j: %d, k: %d, l: %d\n", i, j, k, l);
         }
-            
-            
-        }
-
-        
-            
-            
     }
+}
 
-
- 
 
 
 
@@ -209,32 +241,32 @@ int main() {
 
 
 
-
     // // Read from binary file
-    std::ifstream infile("G2_node_combinations.bin", std::ios::binary);
+    std::ifstream infile("G1_node_combinations.bin", std::ios::binary);
 
     // Read the size of the array
-    int size_of_G2_combs;
-    infile.read(reinterpret_cast<char*>(&size_of_G2_combs), sizeof(int));
+    int size_of_G1_combs;
+    infile.read(reinterpret_cast<char*>(&size_of_G1_combs), sizeof(int));
 
     int *comb;
     cudaError_t cudaStatus;
 
-    cudaStatus = cudaMallocManaged(&comb, size_of_G2_combs  * 3 * sizeof(int));
+    cudaStatus = cudaMallocManaged(&comb, size_of_G1_combs  * 3 * sizeof(int));
     //int num = 0;
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMallocManaged failed: %s\n", cudaGetErrorString(cudaStatus));
         return 1;
     }
 
-    infile.read(reinterpret_cast<char*>(comb), size_of_G2_combs  * 3 * sizeof(int));
+    infile.read(reinterpret_cast<char*>(comb), size_of_G1_combs  * 3 * sizeof(int));
     infile.close();
 
 
-
-    // // Print elements of h_G2_combs
-    // printf("Elements of h_G2_combs array:\n");
-    // for (int i = 0; i < size_of_G2_combs; ++i) {
+    
+    
+    // // Print elements of h_G1_combs
+    // printf("Elements of h_G1_combs array:\n");
+    // for (int i = 0; i < size_of_G1_combs; ++i) {
     //     int idx = i * 3;
     //     printf("index : %d\n", idx);
     //     printf("i: %d, j: %d, k: %d \n", comb[idx], comb[idx+1], comb[idx+2]);
@@ -243,15 +275,15 @@ int main() {
 
     //Define block and grid sizes
     int totalComb;  // Update this based on your actual combinations
-    totalComb = size_of_G2_combs;
+    totalComb = size_of_G1_combs;
     int blockSize = 512;
     int gridSize = (totalComb + blockSize - 1) / blockSize;
 
-    printf("[main] Launching kernels for G6\n");
+    printf("[main] Launching kernels for G3\n");
     // Launch the kernel
     int l;
     for(l = 0; l < numNodes; l++){
-        G5_count_kernel<<<gridSize, blockSize >>>(d_graph, numNodes, totalComb, l ,d_count, comb);
+        G3_count_kernel<<<gridSize, blockSize >>>(d_graph, numNodes, totalComb, l ,d_count, comb);
     }
 
     cudaDeviceSynchronize();
@@ -260,7 +292,8 @@ int main() {
     cudaMemcpy(&h_count, d_count, sizeof(int), cudaMemcpyDeviceToHost);
 
     // Print the result
-    printf("[main] G6Count: %d\n", h_count);
+    printf("[main] G3 Count: %d\n", h_count/2); // Counted double because of implementation
+
     // Free unified memory
     cudaFree(comb);
     cudaFree(h_graph);
@@ -269,5 +302,9 @@ int main() {
 
     return 0;
 }
+
+
+
+
 
 
