@@ -3,9 +3,9 @@ Team number: AOHW-253
 
 Project name: FGN(Fast Graph Networks)
 
-Link to YouTube Video(s):
+Link to YouTube Video(s): https://www.youtube.com/watch?v=S43oWBkmc0w
 
-Link to project repository:
+Link to project repository: https://github.com/hakanuskan/CPU-GPU_CountingTrianglesInGraphs
 
  
 
@@ -14,7 +14,7 @@ University name: Izmir Instute of Technology
 Participant(s): Cüneyd Çelik, Deniz Karabacak,Emirkan Güz,Hakan Uskan,Malik Nizar Asad Al Hinnawi
 
 
-Email:
+Email: denizkarabacak@std.iyte.edu.tr,cuneydcelik@std.iyte.edu.tr,hakanuskan@std.iyte.edu.tr,emirkanguz@std.iyte.edu.tr,malikal@std.iyte.edu.tr
 
 
 Supervisor name: Işıl Öz
