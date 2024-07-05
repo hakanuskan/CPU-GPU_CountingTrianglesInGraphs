@@ -25,17 +25,29 @@ combination (7/3) is 35. 5 different 3 node combinations.
 these are code indexes.
 
 5 6 7 //thread 0 will check wheather node 5 6 7 is a G1
+
 4 5 7 //thread 1 will check wheather node 4 5 7 is a G1
+
 4 5 6 // ...
-4 6 7 
+
+4 6 7  
+
 3 4 7 
+
 3 4 6 
+
 3 4 5 
+
 3 5 7 
+
 3 5 6 
+
 3 6 7 
+
 2 3 7 
+
 2 3 6 
+
 2 3 5 
 2 3 4 
 2 4 7 
