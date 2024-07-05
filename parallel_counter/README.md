@@ -48,42 +48,74 @@ these are code indexes.
 
 2 3 6 
 
-2 3 5 
-2 3 4 
-2 4 7 
-2 4 6 
-2 4 5 
+2 3 5
+
+2 3 4
+
+2 4 7
+
+2 4 6
+
+2 4 5
+
 2 5 7 
+
 2 5 6 
+
 2 6 7 
+
 1 2 7 
+
 1 2 6 
+
 1 2 5 
+
 1 2 4 
+
 1 2 3 
+
 1 3 7 
+
 1 3 6 
+
 1 3 5 
+
 1 3 4 
+
 1 4 7 
+
 1 4 6 
+
 1 4 5 
+
 1 5 7 
+
 1 5 6 
+
 1 6 7 //thread 34 will check wheather node 1 6 7 is a G1
 
 leads to 
 
 G1:there are 8
+
 2 0 1
+
 2 0 3
+
 2 0 4
+
 1 0 3
+
 1 0 4
+
 3 0 4
+
 0 4 5
+
 0 4 6
+
 write combinations into G1 combs.bin file
+
 G2:There is 0
 
 G3-G4-G5 counter:
@@ -91,27 +123,48 @@ G3-G4-G5 counter:
 first step: getcombinations from G1 combs.bin file
 
 second step iterate kernels number of node times (in this case 7)
+
 Frist iteration:
+
 2 0 1 // thread 0 will check 2 0 1 0 
+
 2 0 3 // thread 1 will check 2 0 3 0
+
 2 0 4 // thread 2 will check 2 0 4 0
+
 1 0 3 // thread 3 will check 1 0 3 0
+
 1 0 4
+
 3 0 4
+
 0 4 5
+
 0 4 6 // thread 7 will check 0 4 6 0
 
+
 Second iteration
+
 2 0 1 // thread 0 will check 2 0 1 1 
+
 2 0 3 // thread 1 will check 2 0 3 1
+
 2 0 4 // thread 2 will check 2 0 4 1
+
 1 0 3 // thread 3 will check 1 0 3 1
+
 1 0 4
+
 3 0 4
+
 0 4 5
+
 0 4 6 // thread 7 will check 0 4 6 1
+
 Third iteration
+
 all same only last check elemnt is 2
+
 ...
 
 
