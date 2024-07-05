@@ -1,6 +1,6 @@
 # Your Project Title
 
-![Project Logo](parallel_counter/images/graphlets.png)
+![Project Logo](images/graphlets.png)
 
 ## Proposed Solution
 
